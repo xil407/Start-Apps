@@ -1,0 +1,16 @@
+{
+  "short_name": "NinjaSkater",
+  "name": "Ninja Skater - Neck Deep Edition",
+  "icons": [
+    {
+      "src": "player.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#a8c0ff",
+  "display": "standalone",
+  "theme_color": "#ff4500",
+  "orientation": "landscape"
+}
