@@ -17,6 +17,7 @@ let isGameOver = false;
 let obstacles = [];
 let trees = []; 
 let frames = 0;
+let nextObstacleFrame = 100; // Untuk mengatur jarak acak rintangan
 
 // --- LOAD ASSETS ---
 const playerImg = new Image(); playerImg.src = "player.png";
@@ -44,7 +45,7 @@ startButton.addEventListener("click", () => {
     update();
 });
 
-// --- LOGIKA POHON ---
+// --- LOGIKA POHON (DEKORASI) ---
 function spawnTree() {
     if (frames % 120 === 0) {
         trees.push({ x: canvas.width, y: canvas.height - 170, width: 100, height: 120 });
@@ -59,25 +60,34 @@ function handleBackground() {
     }
 }
 
-// --- LOGIKA RINTANGAN ---
+// --- LOGIKA RINTANGAN (DENGAN JARAK ACAK) ---
 function spawnObstacle() {
-    let spawnRate = Math.max(40, 90 - Math.floor(gameSpeed * 2));
-    if (frames % spawnRate === 0) {
+    // Menentukan jarak aman (gap) minimal dan maksimal agar tidak mustahil dilewati
+    let minGap = 70; 
+    let maxGap = 160; 
+
+    if (frames >= nextObstacleFrame) {
         obstacles.push({ x: canvas.width, y: canvas.height - 70, width: 40, height: 40 });
+        
+        // Tentukan secara acak kapan rintangan berikutnya muncul
+        let randomGap = Math.floor(Math.random() * (maxGap - minGap)) + minGap;
+        nextObstacleFrame = frames + randomGap;
     }
 }
 
 function handleObstacles() {
     for (let i = 0; i < obstacles.length; i++) {
         obstacles[i].x -= gameSpeed;
-        ctx.fillStyle = "#ff4500"; // Warna bola api
+        
+        // Gambar rintangan (Bola Api)
+        ctx.fillStyle = "#ff4500"; 
         ctx.beginPath();
         ctx.arc(obstacles[i].x + 20, obstacles[i].y + 20, 20, 0, Math.PI * 2);
         ctx.fill();
 
         // Deteksi Tabrakan
-        if (player.x + player.width - 20 > obstacles[i].x && 
-            player.x + 20 < obstacles[i].x + obstacles[i].width &&
+        if (player.x + player.width - 25 > obstacles[i].x && 
+            player.x + 25 < obstacles[i].x + obstacles[i].width &&
             player.y + player.height > obstacles[i].y) {
             
             isGameOver = true;
@@ -93,13 +103,25 @@ function handleObstacles() {
     }
 }
 
-// --- INPUT ---
-window.addEventListener("touchstart", () => {
+// --- INPUT (SENTUH & KEYBOARD) ---
+function handleJump() {
     if (isGameRunning && player.grounded && !isGameOver) {
         player.dy = -player.jumpForce;
         player.grounded = false;
     }
     if (isGameOver) location.reload();
+}
+
+window.addEventListener("touchstart", (e) => {
+    // Mencegah zoom saat ketuk layar cepat
+    if (isGameRunning) e.preventDefault();
+    handleJump();
+});
+
+window.addEventListener("keydown", (e) => {
+    if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") {
+        handleJump();
+    }
 });
 
 // --- LOOP UTAMA ---
@@ -118,46 +140,48 @@ function update() {
         ctx.fillStyle = "#FFD700";
         ctx.fillText("TERTINGGI: " + highScore, canvas.width/2, canvas.height/2 + 55);
         ctx.fillStyle = "white";
-        ctx.fillText("Ketuk untuk Restart", canvas.width/2, canvas.height/2 + 110);
+        ctx.fillText("Spasi atau Ketuk untuk Restart", canvas.width/2, canvas.height/2 + 110);
         return;
     }
 
-    // --- LOGIKA PERUBAHAN BACKGROUND ---
-    let skyColor = "#a8c0ff"; // Siang (Default)
-    if (gameSpeed >= 9 && gameSpeed < 12) {
-        skyColor = "#ff7e5f"; // Sore
-    } else if (gameSpeed >= 12) {
-        skyColor = "#2c3e50"; // Malam
-    }
+    // Perubahan Warna Langit berdasarkan Kecepatan
+    let skyColor = "#a8c0ff"; 
+    if (gameSpeed >= 9 && gameSpeed < 12) skyColor = "#ff7e5f"; 
+    else if (gameSpeed >= 12) skyColor = "#2c3e50"; 
     document.body.style.background = skyColor;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     frames++;
 
-    // Tambah kecepatan tiap 500 frame
-    if (frames % 500 === 0) gameSpeed += 0.5;
+    // Tambah kecepatan setiap 600 frame agar lebih stabil
+    if (frames % 600 === 0) gameSpeed += 0.5;
 
     // Fisika Player
     player.y += player.dy;
     player.dy += player.gravity;
+    
+    // Batas Tanah
     if (player.y + player.height > canvas.height - 50) {
         player.y = canvas.height - 50 - player.height;
-        player.dy = 0; player.grounded = true;
+        player.dy = 0; 
+        player.grounded = true;
     }
 
-    // Gambar Semuanya
+    // Gambar Dekorasi & Tanah
     spawnTree(); 
     handleBackground();
     
-    ctx.fillStyle = "white"; // Tanah salju
+    ctx.fillStyle = "white"; // Salju
     ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
     
+    // Gambar Ninja
     ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
     
+    // Gambar Rintangan
     spawnObstacle(); 
     handleObstacles();
 
-    // UI Skor (Teks jadi putih kalau sudah malam)
+    // Tampilan Skor
     ctx.fillStyle = (gameSpeed >= 12) ? "white" : "#333";
     ctx.textAlign = "left"; 
     ctx.font = "bold 20px Courier";
@@ -167,10 +191,4 @@ function update() {
     ctx.fillText("SPEED: " + gameSpeed.toFixed(1), 20, 100);
 
     requestAnimationFrame(update);
-}
-
-// Mendaftarkan Service Worker agar Chrome mengenali sebagai PWA
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js')
-    .then(() => console.log("Service Worker Terdaftar"));
 }
